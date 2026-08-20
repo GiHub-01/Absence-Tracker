@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+<title>Absent — Attendance Tracker</title>
+<meta name="theme-color" content="#0F1115" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Absent" />
+
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        fontFamily: {
+          display: ['"Space Grotesk"', 'sans-serif'],
+          body: ['Inter', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'monospace'],
+        },
+      }
+    }
+  }
+</script>
+
+<style>
+  :root {
+    --bg: #F5F6F8;
+    --surface: #FFFFFF;
+    --surface-2: #EEF0F4;
+    --ink: #14161A;
+    --ink-soft: #5B6072;
+    --ink-faint: #9096A6;
+    --border: #E3E6ED;
+    --accent: #5B5FEF;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #EEF0FE;
+    --safe: #17915B;
+    --safe-soft: #E7F7EF;
+    --warning: #B4790A;
+    --warning-soft: #FDF3E1;
+    --critical: #C2273D;
+    --critical-soft: #FCEAEE;
+    --shadow: 0 1px 2px rgba(20,22,26,0.04), 0 8px 24px -12px rgba(20,22,26,0.10);
+  }
+  html.dark {
+    --bg: #0E1014;
+    --surface: #171A21;
+    --surface-2: #1D212A;
+    --ink: #F2F3F6;
+    --ink-soft: #9AA0AE;
+    --ink-faint: #666C7A;
+    --border: #2A2F3A;
+    --accent: #8285FF;
+    --accent-ink: #10121A;
+    --accent-soft: #22243F;
+    --safe: #35D089;
+    --safe-soft: #12271D;
+    --warning: #F0B84D;
+    --warning-soft: #2A2110;
+    --critical: #F1596E;
+    --critical-soft: #2C161B;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 28px -14px rgba(0,0,0,0.55);
+  }
+  html, body { background: var(--bg); }
+  body { font-family: 'Inter', sans-serif; color: var(--ink); -webkit-tap-highlight-color: transparent; }
+  .font-display { font-family: 'Space Grotesk', sans-serif; }
+  .font-mono-num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+  * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+
+  .surface { background: var(--surface); border: 1px solid var(--border); }
+  .surface-2 { background: var(--surface-2); }
+  .txt-soft { color: var(--ink-soft); }
+  .txt-faint { color: var(--ink-faint); }
+  .bd { border-color: var(--border); }
+  .card-shadow { box-shadow: var(--shadow); }
+
+  .btn-focus:focus-visible, a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes popIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  .anim-fadeUp { animation: fadeUp 0.35s ease both; }
+  .anim-popIn { animation: popIn 0.18s cubic-bezier(.2,.8,.2,1) both; }
+  .anim-slideUp { animation: slideUp 0.28s cubic-bezier(.2,.8,.2,1) both; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type="number"] { -moz-appearance: textfield; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel-source" id="app-source">
+const { useState, useEffect, useMemo, useRef } = React;
+
+/* ============================= STORAGE ============================= */
+
+const STORAGE_KEY = 'absence-tracker:data:v2';
+
+function memoryStore() {
+  let mem = {};
+  return {
+    getItem: (k) => (k in mem ? mem[k] : null),
+    setItem: (k, v) => { mem[k] = v; },
+  };
+}
+let memFallback = memoryStore();
+function storageGet(key) {
+  try { return window.localStorage.getItem(key); }
+  catch (e) { return memFallback.getItem(key); }
+}
+function storageSet(key, value) {
+  try { window.localStorage.setItem(key, value); }
+  catch (e) { memFallback.setItem(key, value); }
+}
+
+function uid() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); }
+
+function todayISO() {
+  const d = new Date();
+  const tz = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - tz * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
+function formatDate(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function formatDateShort(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function defaultData() {
+  return { theme: 'light', currentSemesterId: null, semesters: [] };
+}
+
+// Defensively normalizes any parsed data object (from localStorage or an
+// imported file) into a shape the app can safely render. Throws with a
+// human-readable reason if the data is unusable, rather than crashing the
+// app on unexpected/corrupted input.
+function sanitizeData(parsed) {
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.semesters) || parsed.semesters.length === 0) {
+    throw new Error('Missing or empty semesters list');
+  }
+  const semesters = parsed.semesters.map((s, i) => {
+    if (!s || typeof s !== 'object') throw new Error(`Semester ${i + 1} is malformed`);
+    const courses = Array.isArray(s.courses) ? s.courses.map((c, j) => {
+      if (!c || typeof c !== 'object' || typeof c.name !== 'string') {
+        throw new Error(`Course ${j + 1} in "${s.name || 'Untitled'}" is malformed`);
+      }
+      const absences = Array.isArray(c.absences)
+        ? c.absences.filter(d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d))
+        : [];
+      return {
+        id: typeof c.id === 'string' && c.id ? c.id : uid(),
+        name: c.name,
+        code: typeof c.code === 'string' ? c.code : '',
+        faculty: typeof c.faculty === 'string' ? c.faculty : '',
+        absences: [...new Set(absences)],
+      };
+    }) : [];
+    return {
+      id: typeof s.id === 'string' && s.id ? s.id : uid(),
+      name: typeof s.name === 'string' && s.name.trim() ? s.name : 'Untitled Semester',
+      courses,
+    };
+  });
+  const validIds = new Set(semesters.map(s => s.id));
+  const currentSemesterId = validIds.has(parsed.currentSemesterId) ? parsed.currentSemesterId : semesters[0].id;
+  const theme = parsed.theme === 'dark' ? 'dark' : 'light';
+  return { theme, currentSemesterId, semesters };
+}
+
+function loadData() {
+  const raw = storageGet(STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    return sanitizeData(JSON.parse(raw));
+  } catch (e) {
+    return null; // corrupted storage — fall back to a fresh default state
+  }
+}
+
+/* ============================= SMALL UI PRIMITIVES ============================= */
+
+function IconBtn({ label, onClick, children, className = '' }) {
+  return (
+    <button
+      aria-label={label} title={label} onClick={onClick}
+      className={"btn-focus inline-flex items-center justify-center rounded-xl w-10 h-10 surface-2 hover:opacity-80 active:scale-95 transition " + className}
+    >
+      {children}
+    </button>
+  );
+}
+
+function PrimaryButton({ children, onClick, className = '', type = 'button', ...rest }) {
+  return (
+    <button
+      type={type} onClick={onClick}
+      className={"btn-focus inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-sm active:scale-[0.98] transition " + className}
+      style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+}
+
+function GhostButton({ children, onClick, className = '', danger = false, ...rest }) {
+  return (
+    <button
+      onClick={onClick}
+      className={"btn-focus inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-sm surface active:scale-[0.98] transition hover:opacity-80 " + className}
+      style={danger ? { color: 'var(--critical)', borderColor: 'var(--critical)' } : {}}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Field({ label, children, hint }) {
+  return (
+    <label className="block mb-4">
+      <span className="block text-sm font-semibold mb-1.5">{label}</span>
+      {children}
+      {hint && <span className="block text-xs txt-faint mt-1">{hint}</span>}
+    </label>
+  );
+}
+
+function TextInput(props) {
+  return (
+    <input
+      {...props}
+      className={"btn-focus w-full rounded-xl px-3.5 py-2.5 surface-2 text-sm font-body border bd " + (props.className || '')}
+    />
+  );
+}
+
+/* ============================= MODAL / DIALOG SHELLS ============================= */
+
+function Modal({ title, onClose, children, footer, wide }) {
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-black/40 anim-fadeUp" style={{ animationDuration: '0.2s' }} onClick={onClose} />
+      <div
+        role="dialog" aria-modal="true" aria-label={title}
+        className={"relative w-full anim-slideUp surface rounded-t-3xl sm:rounded-3xl card-shadow max-h-[92vh] overflow-y-auto " + (wide ? 'sm:max-w-lg' : 'sm:max-w-md')}
+      >
+        <div className="sticky top-0 surface flex items-center justify-between px-6 pt-6 pb-4 border-b bd">
+          <h2 className="font-display text-lg font-semibold">{title}</h2>
+          <IconBtn label="Close" onClick={onClose}>✕</IconBtn>
+        </div>
+        <div className="px-6 py-5">{children}</div>
+        {footer && <div className="px-6 pb-6 pt-2 flex justify-end gap-3">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDialog({ title, body, confirmLabel = 'Confirm', danger, onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
+      <div role="alertdialog" aria-modal="true" aria-label={title} className="relative w-full max-w-sm surface rounded-2xl card-shadow p-6 anim-popIn">
+        <h3 className="font-display text-lg font-semibold mb-2">{title}</h3>
+        <p className="text-sm txt-soft mb-6">{body}</p>
+        <div className="flex justify-end gap-3">
+          <GhostButton onClick={onCancel}>Cancel</GhostButton>
+          <PrimaryButton onClick={onConfirm} style={danger ? { background: 'var(--critical)', color: '#fff' } : {}}>
+            {confirmLabel}
+          </PrimaryButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================= TOAST ============================= */
+
+function Toast({ toast, onDismiss }) {
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(onDismiss, 4500);
+    return () => clearTimeout(t);
+  }, [toast]);
+  if (!toast) return null;
+  return (
+    <div
+      role="status" aria-live="polite"
+      className="fixed bottom-24 sm:bottom-5 left-1/2 z-[70] flex items-center gap-4 surface card-shadow rounded-2xl px-5 py-3.5 anim-fadeUp"
+      style={{ animation: 'toastIn 0.25s cubic-bezier(.2,.8,.2,1) both', maxWidth: '92vw' }}
+    >
+      <span className="text-sm font-medium">{toast.message}</span>
+      {toast.onUndo && (
+        <button className="btn-focus text-sm font-bold rounded-lg px-2 py-1" style={{ color: 'var(--accent)' }} onClick={() => { toast.onUndo(); onDismiss(); }}>
+          Undo
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ============================= DATE PICKER ROW (core interaction) ============================= */
+// Pick a date, tap to mark/unmark that date as absent. This is the single
+// interaction that replaces all the old +/- and total-classes bookkeeping.
+
+function AbsenceDatePicker({ absences, onToggle, compact, showUnmark }) {
+  const [date, setDate] = useState(todayISO());
+  const isMarked = absences.includes(date);
+
+  return (
+    <div className={"flex items-center gap-2 " + (compact ? '' : 'flex-wrap')}>
+      <input
+        type="date" value={date} max={todayISO()}
+        onChange={e => setDate(e.target.value)}
+        aria-label="Select date"
+        className="btn-focus rounded-xl px-3 py-2 surface-2 text-sm border bd font-body flex-1 min-w-0"
+      />
+      {showUnmark ? (
+        <button
+          onClick={() => onToggle(date)}
+          className="btn-focus rounded-xl px-3.5 py-2 text-sm font-semibold active:scale-95 transition whitespace-nowrap"
+          style={isMarked
+            ? { background: 'var(--critical-soft)', color: 'var(--critical)' }
+            : { background: 'var(--accent)', color: 'var(--accent-ink)' }}
+        >
+          {isMarked ? '✕ Unmark absent' : '+ Mark absent'}
+        </button>
+      ) : (
+        <button
+          onClick={() => { if (!isMarked) onToggle(date); }}
+          className="btn-focus rounded-xl px-3.5 py-2 text-sm font-semibold active:scale-95 transition whitespace-nowrap"
+          style={{ background: 'var(--accent)', color: 'var(--accent-ink)' }}
+        >
+          + Mark absent
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ============================= COURSE CARD ============================= */
+
+function CourseOverviewRow({ course, onOpen, onDelete }) {
+  const count = course.absences.length;
+  const thisMonthCount = course.absences.filter(d => d.slice(0, 7) === todayISO().slice(0, 7)).length;
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        className="btn-focus flex-1 min-w-0 flex items-center justify-between gap-3 surface-2 rounded-2xl px-4 py-3.5 text-left hover:opacity-90 active:scale-[0.99] transition"
+        onClick={() => onOpen(course.id)}
+      >
+        <div className="min-w-0">
+          <p className="font-display font-semibold text-sm truncate">{course.name || 'Untitled course'}</p>
+          <p className="text-xs txt-faint truncate mt-0.5">{course.code}{course.faculty ? ` · ${course.faculty}` : ''}</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {thisMonthCount > 0 && (
+            <span className="text-[10px] font-semibold rounded-full px-1.5 py-0.5" style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}>
+              +{thisMonthCount}
+            </span>
+          )}
+          <span className="font-mono-num font-bold text-xl" style={{ color: count > 0 ? 'var(--critical)' : 'var(--ink)' }}>
+            {count}
+          </span>
+          <span className="text-xs txt-faint">abs.</span>
+        </div>
+      </button>
+      <IconBtn label={`Delete ${course.name}`} onClick={() => onDelete(course)} className="shrink-0">🗑</IconBtn>
+    </div>
+  );
+}
+
+/* ============================= ADD / EDIT COURSE MODAL ============================= */
+
+function CourseModal({ initial, onSave, onClose }) {
+  const [name, setName] = useState(initial?.name || '');
+  const [code, setCode] = useState(initial?.code || '');
+  const [faculty, setFaculty] = useState(initial?.faculty || '');
+  const [error, setError] = useState('');
+
+  function handleSave() {
+    if (!name.trim()) { setError('Course name is required.'); return; }
+    onSave({
+      id: initial?.id || uid(),
+      name: name.trim(),
+      code: code.trim(),
+      faculty: faculty.trim(),
+      absences: initial?.absences || [],
+    });
+  }
+
+  return (
+    <Modal
+      title={initial ? 'Edit course' : 'Add course'}
+      onClose={onClose}
+      footer={<>
+        <GhostButton onClick={onClose}>Cancel</GhostButton>
+        <PrimaryButton onClick={handleSave}>{initial ? 'Save changes' : 'Add course'}</PrimaryButton>
+      </>}
+    >
+      <Field label="Course name">
+        <TextInput value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Operating Systems" autoFocus />
+      </Field>
+      <Field label="Course code (optional)">
+        <TextInput value={code} onChange={e => setCode(e.target.value)} placeholder="e.g. BTECH-OS" />
+      </Field>
+      <Field label="Faculty (optional)">
+        <TextInput value={faculty} onChange={e => setFaculty(e.target.value)} placeholder="e.g. Dr. R. Sharma" />
+      </Field>
+      {error && <p className="text-sm mb-2" style={{ color: 'var(--critical)' }} role="alert">{error}</p>}
+    </Modal>
+  );
+}
+
+function QuickAddAbsence({ courses, onToggleDate }) {
+  const [selected, setSelected] = useState(courses[0]?.id || '');
+  useEffect(() => { if (!courses.find(c => c.id === selected)) setSelected(courses[0]?.id || ''); }, [courses]);
+  const course = courses.find(c => c.id === selected);
+  if (courses.length === 0 || !course) return null;
+
+  return (
+    <div className="surface rounded-3xl card-shadow p-5 flex flex-col gap-3 anim-fadeUp">
+      <p className="font-display font-semibold text-sm">Log an absence</p>
+      <select
+        value={selected} onChange={e => setSelected(e.target.value)}
+        className="btn-focus w-full rounded-xl px-3.5 py-2.5 surface-2 text-sm border bd font-body"
+        aria-label="Select course"
+      >
+        {courses.map(c => <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>)}
+      </select>
+      <AbsenceDatePicker absences={course.absences} onToggle={d => onToggleDate(course.id, d)} />
+    </div>
+  );
+}
+
+function EmptyState({ onAdd }) {
+  return (
+    <div className="surface rounded-3xl card-shadow p-10 flex flex-col items-center text-center gap-4 anim-fadeUp">
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl" style={{ background: 'var(--accent-soft)' }}>🎒</div>
+      <div>
+        <h3 className="font-display font-semibold text-lg">No courses yet</h3>
+        <p className="text-sm txt-soft mt-1 max-w-xs">Add a course, then tap a date to log the classes you missed.</p>
+      </div>
+      <PrimaryButton onClick={onAdd}>+ Add Course</PrimaryButton>
+    </div>
+  );
+}
+
+/* ============================= SEMESTER SELECTOR ============================= */
+
+function SemesterSelector({ semesters, currentId, onSwitch, onAdd, onRename, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const current = semesters.find(s => s.id === currentId);
+  const ref = useRef(null);
+  useEffect(() => {
+    function onDoc(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        className="btn-focus flex items-center gap-2 rounded-xl px-3.5 py-2 surface-2 text-sm font-semibold"
+        onClick={() => setOpen(o => !o)} aria-haspopup="listbox" aria-expanded={open}
+      >
+        <span>📚</span>{current ? current.name : 'No semester'}<span className="txt-faint">▾</span>
+      </button>
+      {open && (
+        <div className="absolute z-40 mt-2 w-64 surface rounded-2xl card-shadow p-2 anim-popIn" role="listbox">
+          {semesters.map(s => (
+            <div key={s.id} className="flex items-center justify-between rounded-xl px-2 py-1.5"
+              style={s.id === currentId ? { background: 'var(--accent-soft)' } : {}}
+            >
+              <button className="btn-focus flex-1 text-left text-sm px-1 py-1 rounded-lg truncate" onClick={() => { onSwitch(s.id); setOpen(false); }}>
+                {s.name}
+              </button>
+              <div className="flex items-center gap-0.5">
+                <button className="btn-focus w-7 h-7 rounded-lg text-xs" aria-label={`Rename ${s.name}`} onClick={() => { const n = prompt('Rename semester', s.name); if (n && n.trim()) onRename(s.id, n.trim()); }}>✎</button>
+                {semesters.length > 1 && <button className="btn-focus w-7 h-7 rounded-lg text-xs" aria-label={`Delete ${s.name}`} onClick={() => onDelete(s.id)}>🗑</button>}
+              </div>
+            </div>
+          ))}
+          <button className="btn-focus w-full text-left text-sm font-semibold px-3 py-2 rounded-xl mt-1" style={{ color: 'var(--accent)' }} onClick={() => { const n = prompt('New semester name', ''); if (n && n.trim()) { onAdd(n.trim()); setOpen(false); } }}>
+            + Add semester
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================= SETTINGS PANEL ============================= */
+
+function SettingsModal({ onClose, onExport, onImport, onReset }) {
+  const fileRef = useRef(null);
+
+  return (
+    <Modal title="Settings" onClose={onClose} wide>
+      <h3 className="font-display font-semibold text-sm mb-3">Data</h3>
+      <div className="flex flex-col gap-3">
+        <GhostButton onClick={onExport}>⭳ Export data as JSON</GhostButton>
+        <GhostButton onClick={() => fileRef.current?.click()}>⭱ Import data from JSON</GhostButton>
+        <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) onImport(f); e.target.value = ''; }} />
+      </div>
+      <div className="h-px bd border-t my-5" />
+      <h3 className="font-display font-semibold text-sm mb-3" style={{ color: 'var(--critical)' }}>Danger zone</h3>
+      <GhostButton danger onClick={onReset}>Reset all data</GhostButton>
+    </Modal>
+  );
+}
+
+/* ============================= COURSE DETAIL PAGE ============================= */
+
+function CourseDetail({ course, onBack, onToggleDate, onEdit, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
+  const sorted = [...course.absences].sort((a, b) => b.localeCompare(a));
+
+  return (
+    <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 anim-fadeUp">
+      <button className="btn-focus text-sm font-semibold flex items-center gap-1 mb-5 txt-soft" onClick={onBack}>
+        ← Back to dashboard
+      </button>
+
+      <div className="surface rounded-3xl card-shadow p-6 sm:p-8 flex flex-col items-center text-center gap-2">
+        <h1 className="font-display font-bold text-2xl">{course.name}</h1>
+        <p className="txt-faint text-sm">{course.code}{course.faculty ? ` · ${course.faculty}` : ''}</p>
+
+        <div className="flex items-baseline gap-2 my-4">
+          <span className="font-mono-num font-bold text-5xl" style={{ color: sorted.length > 0 ? 'var(--critical)' : 'var(--ink)' }}>
+            {sorted.length}
+          </span>
+          <span className="txt-soft font-medium">absence{sorted.length === 1 ? '' : 's'} logged</span>
+        </div>
+
+        <button
+          onClick={() => setExpanded(x => !x)}
+          aria-expanded={expanded}
+          className="btn-focus flex items-center justify-between w-full rounded-xl px-3.5 py-2.5 text-sm font-semibold transition mb-2"
+          style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+        >
+          <span>{expanded ? 'Hide dates & unmark' : 'Show dates & unmark'}</span>
+          <span aria-hidden="true">{expanded ? '▴' : '▾'}</span>
+        </button>
+
+        <div className="w-full">
+          <AbsenceDatePicker absences={course.absences} onToggle={d => onToggleDate(course.id, d)} showUnmark={expanded} />
+        </div>
+
+        {expanded && (
+          <div className="w-full text-left mt-6">
+            <h2 className="text-xs font-semibold txt-faint uppercase tracking-wide mb-2">All absences</h2>
+            {sorted.length === 0 ? (
+              <p className="text-sm txt-faint py-4 text-center">No absences logged yet.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {sorted.map(d => (
+                  <li key={d} className="flex items-center justify-between surface-2 rounded-xl px-4 py-2.5">
+                    <span className="text-sm font-medium">{formatDate(d)}</span>
+                    <button
+                      aria-label={`Remove absence on ${formatDate(d)}`}
+                      className="btn-focus text-xs font-bold rounded-lg px-2 py-1"
+                      style={{ color: 'var(--critical)' }}
+                      onClick={() => onToggleDate(course.id, d)}
+                    >Remove</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 mt-6 w-full">
+          <GhostButton className="flex-1" onClick={() => onEdit(course)}>Edit details</GhostButton>
+          <GhostButton danger onClick={() => onDelete(course)}>Delete course</GhostButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================= APP ============================= */
+
+function App() {
+  const [data, setData] = useState(() => {
+    const loaded = loadData();
+    if (loaded) return loaded;
+    const d = defaultData();
+    const sem = { id: uid(), name: 'Semester 1', courses: [] };
+    d.semesters = [sem];
+    d.currentSemesterId = sem.id;
+    return d;
+  });
+
+  const [view, setView] = useState({ type: 'dashboard' });
+  const [modal, setModal] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [confirmDeleteSem, setConfirmDeleteSem] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('name');
+
+  useEffect(() => { storageSet(STORAGE_KEY, JSON.stringify(data)); }, [data]);
+  useEffect(() => { document.documentElement.classList.toggle('dark', data.theme === 'dark'); }, [data.theme]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    if (action === 'add-course') setModal({ type: 'add' });
+    if (action === 'quick-add') {
+      setTimeout(() => document.getElementById('quick-add-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+    }
+    if (action) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('action'); url.searchParams.delete('source');
+      window.history.replaceState({}, '', url.pathname + url.hash);
+    }
+  }, []);
+
+  const currentSemester = data.semesters.find(s => s.id === data.currentSemesterId) || data.semesters[0];
+  const courses = currentSemester ? currentSemester.courses : [];
+
+  function updateSemester(semId, fn) {
+    setData(d => ({ ...d, semesters: d.semesters.map(s => s.id === semId ? fn(s) : s) }));
+  }
+  function showToast(message, onUndo) { setToast({ message, onUndo, key: uid() }); }
+
+  function saveCourse(course) {
+    const isNew = !currentSemester.courses.find(c => c.id === course.id);
+    updateSemester(currentSemester.id, s => ({
+      ...s,
+      courses: isNew ? [...s.courses, course] : s.courses.map(c => c.id === course.id ? { ...c, ...course } : c),
+    }));
+    setModal(null);
+  }
+
+  function deleteCourse(course) {
+    updateSemester(currentSemester.id, s => ({ ...s, courses: s.courses.filter(c => c.id !== course.id) }));
+    setConfirmDelete(null);
+    if (view.type === 'detail' && view.courseId === course.id) setView({ type: 'dashboard' });
+  }
+
+  function toggleDate(courseId, date) {
+    let wasMarked = false;
+    updateSemester(currentSemester.id, s => ({
+      ...s,
+      courses: s.courses.map(c => {
+        if (c.id !== courseId) return c;
+        wasMarked = c.absences.includes(date);
+        const nextAbsences = wasMarked ? c.absences.filter(d => d !== date) : [...c.absences, date];
+        return { ...c, absences: nextAbsences };
+      }),
+    }));
+    const c = courses.find(x => x.id === courseId);
+    const label = c ? c.name : 'course';
+    if (!wasMarked) {
+      showToast(`Marked absent on ${formatDateShort(date)} — ${label}`, () => {
+        updateSemester(currentSemester.id, s => ({
+          ...s,
+          courses: s.courses.map(c2 => c2.id === courseId ? { ...c2, absences: c2.absences.filter(d => d !== date) } : c2),
+        }));
+      });
+    } else {
+      showToast(`Removed absence on ${formatDateShort(date)} — ${label}`, () => {
+        updateSemester(currentSemester.id, s => ({
+          ...s,
+          courses: s.courses.map(c2 => c2.id === courseId ? { ...c2, absences: [...c2.absences, date] } : c2),
+        }));
+      });
+    }
+  }
+
+  function addSemester(name) {
+    const sem = { id: uid(), name, courses: [] };
+    setData(d => ({ ...d, semesters: [...d.semesters, sem], currentSemesterId: sem.id }));
+  }
+  function renameSemester(id, name) {
+    setData(d => ({ ...d, semesters: d.semesters.map(s => s.id === id ? { ...s, name } : s) }));
+  }
+  function deleteSemester(id) {
+    setData(d => {
+      const remaining = d.semesters.filter(s => s.id !== id);
+      const finalSems = remaining.length ? remaining : [{ id: uid(), name: 'New Semester', courses: [] }];
+      return { ...d, semesters: finalSems, currentSemesterId: d.currentSemesterId === id ? finalSems[0].id : d.currentSemesterId };
+    });
+    setConfirmDeleteSem(null);
+  }
+
+  function toggleTheme() { setData(d => ({ ...d, theme: d.theme === 'dark' ? 'light' : 'dark' })); }
+
+  function exportData() {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `absence-tracker-export-${todayISO()}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+  function importData(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const clean = sanitizeData(JSON.parse(reader.result));
+        setData(clean);
+        showToast('Data imported successfully');
+      } catch (e) {
+        showToast(`Import failed — ${e.message || 'invalid file'}`);
+      }
+    };
+    reader.onerror = () => showToast('Import failed — could not read file');
+    reader.readAsText(file);
+  }
+  function resetAll() {
+    const sem = { id: uid(), name: 'Semester 1', courses: [] };
+    setData({ ...defaultData(), semesters: [sem], currentSemesterId: sem.id });
+    setConfirmReset(false);
+    setView({ type: 'dashboard' });
+  }
+
+  const visibleCourses = useMemo(() => {
+    let list = [...courses];
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(c => [c.name, c.code, c.faculty].some(v => (v || '').toLowerCase().includes(q)));
+    }
+    list.sort((a, b) => sortBy === 'absences' ? b.absences.length - a.absences.length : (a.name || '').localeCompare(b.name || ''));
+    return list;
+  }, [courses, search, sortBy]);
+
+  const detailCourse = view.type === 'detail' ? courses.find(c => c.id === view.courseId) : null;
+  useEffect(() => { if (view.type === 'detail' && !detailCourse) setView({ type: 'dashboard' }); }, [detailCourse, view.type]);
+
+  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  return (
+    <div className="min-h-screen pb-24 sm:pb-10">
+      <header className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="font-display font-bold text-3xl sm:text-4xl">My Attendance</h1>
+            <p className="txt-soft text-sm sm:text-base mt-1">Track which days you missed class.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <IconBtn label={data.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}>
+              {data.theme === 'dark' ? '☀' : '🌙'}
+            </IconBtn>
+            <IconBtn label="Settings" onClick={() => setSettingsOpen(true)}>⚙</IconBtn>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 flex-wrap mt-4">
+          <SemesterSelector
+            semesters={data.semesters} currentId={data.currentSemesterId}
+            onSwitch={id => { setData(d => ({ ...d, currentSemesterId: id })); setView({ type: 'dashboard' }); }}
+            onAdd={addSemester} onRename={renameSemester} onDelete={id => setConfirmDeleteSem(id)}
+          />
+          <span className="text-sm txt-faint">{today}</span>
+          <div className="flex-1" />
+          {view.type === 'dashboard' && <PrimaryButton onClick={() => setModal({ type: 'add' })}>+ Add Course</PrimaryButton>}
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 mt-6">
+        {view.type === 'detail' && detailCourse ? (
+          <CourseDetail
+            course={detailCourse}
+            onBack={() => setView({ type: 'dashboard' })}
+            onToggleDate={toggleDate}
+            onEdit={c => setModal({ type: 'edit', course: c })}
+            onDelete={c => setConfirmDelete(c)}
+          />
+        ) : (
+          <>
+            {courses.length > 0 && (
+              <div id="quick-add-section" className="mb-5">
+                <QuickAddAbsence courses={courses} onToggleDate={toggleDate} />
+              </div>
+            )}
+
+            {courses.length === 0 ? (
+              <EmptyState onAdd={() => setModal({ type: 'add' })} />
+            ) : (
+              <>
+                <div className="flex flex-col sm:flex-row gap-3 mb-5">
+                  <TextInput
+                    value={search} onChange={e => setSearch(e.target.value)}
+                    placeholder="Search by name, code, or faculty..." aria-label="Search courses"
+                    className="sm:flex-1"
+                  />
+                  <select value={sortBy} onChange={e => setSortBy(e.target.value)} aria-label="Sort courses"
+                    className="btn-focus rounded-xl px-3.5 py-2.5 surface-2 text-sm border bd font-body">
+                    <option value="name">Sort: Name</option>
+                    <option value="absences">Sort: Most absences</option>
+                  </select>
+                </div>
+
+                {/* At-a-glance dashboard section: every course and its
+                    absence count in one place. Tap a row to open the full
+                    course page — nothing else is exposed here. */}
+                <div className="surface rounded-3xl card-shadow p-5 anim-fadeUp">
+                  <h2 className="font-display font-semibold text-sm mb-3">Your courses</h2>
+                  {visibleCourses.length === 0 ? (
+                    <p className="text-center txt-faint py-10 text-sm">No courses match your search.</p>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {visibleCourses.map(c => (
+                        <CourseOverviewRow
+                          key={c.id} course={c}
+                          onOpen={id => setView({ type: 'detail', courseId: id })}
+                          onDelete={c2 => setConfirmDelete(c2)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </main>
+
+      <div className="sm:hidden fixed bottom-0 inset-x-0 z-30 surface border-t bd px-4 py-3 flex items-center justify-between" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+        <button className="btn-focus flex flex-col items-center gap-0.5 text-xs font-semibold flex-1" onClick={() => setView({ type: 'dashboard' })}>
+          <span className="text-lg">🏠</span>Dashboard
+        </button>
+        <button className="btn-focus flex flex-col items-center gap-0.5 text-xs font-semibold flex-1" onClick={() => setModal({ type: 'add' })}>
+          <span className="text-lg">➕</span>Add Course
+        </button>
+        <button className="btn-focus flex flex-col items-center gap-0.5 text-xs font-semibold flex-1" onClick={() => setSettingsOpen(true)}>
+          <span className="text-lg">⚙</span>Settings
+        </button>
+      </div>
+
+      {modal && (
+        <CourseModal
+          initial={modal.type === 'edit' ? modal.course : null}
+          onSave={saveCourse}
+          onClose={() => setModal(null)}
+        />
+      )}
+      {confirmDelete && (
+        <ConfirmDialog
+          title={`Delete ${confirmDelete.name || 'course'}?`}
+          body="This will permanently remove the course and its logged absences. This can't be undone."
+          confirmLabel="Delete course" danger
+          onConfirm={() => deleteCourse(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+      {confirmDeleteSem && (
+        <ConfirmDialog
+          title="Delete this semester?"
+          body="All courses and absences in this semester will be permanently deleted."
+          confirmLabel="Delete semester" danger
+          onConfirm={() => deleteSemester(confirmDeleteSem)}
+          onCancel={() => setConfirmDeleteSem(null)}
+        />
+      )}
+      {confirmReset && (
+        <ConfirmDialog
+          title="Reset all data?"
+          body="This will permanently delete every semester, course, and absence you've logged."
+          confirmLabel="Reset everything" danger
+          onConfirm={resetAll}
+          onCancel={() => setConfirmReset(false)}
+        />
+      )}
+      {settingsOpen && (
+        <SettingsModal
+          onClose={() => setSettingsOpen(false)}
+          onExport={exportData} onImport={importData}
+          onReset={() => { setSettingsOpen(false); setConfirmReset(true); }}
+        />
+      )}
+
+      <Toast toast={toast} onDismiss={() => setToast(null)} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+<script>
+  (function () {
+    var src = document.getElementById('app-source').textContent;
+    var output = Babel.transform(src, {
+      presets: [
+        ['react', { runtime: 'classic' }],
+        ['env', { modules: false }]
+      ]
+    }).code;
+    (0, eval)(output);
+  })();
+</script>
+<script>
+  // Registers the service worker so the app can be installed and opened
+  // like a native app (standalone window, offline-capable). This only
+  // works when served over http(s) or localhost — browsers block service
+  // workers on file:// pages, so this silently no-ops in that case.
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
